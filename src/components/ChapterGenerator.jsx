@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 export default function ChapterGenerator({ project }) {
   const baseUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
@@ -6,10 +6,12 @@ export default function ChapterGenerator({ project }) {
   const [selected, setSelected] = useState(1)
   const [plan, setPlan] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [generating, setGenerating] = useState(false)
   const [content, setContent] = useState('')
   const [title, setTitle] = useState('')
   const [overridePOV, setOverridePOV] = useState('')
   const [message, setMessage] = useState('')
+  const promptRef = useRef(null)
 
   const fetchChapters = async () => {
     const res = await fetch(`${baseUrl}/api/projects/${project.id}/chapters`)
@@ -36,6 +38,26 @@ export default function ChapterGenerator({ project }) {
     setTitle(data.chapter_title)
   }
 
+  const copyText = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setMessage('Copied to clipboard')
+      setTimeout(()=>setMessage(''), 1500)
+    } catch {
+      setMessage('Copy failed')
+    }
+  }
+
+  const copyPrompt = () => {
+    if (!plan) return
+    copyText(`${plan.system_rules}\n\n${plan.user_prompt}`)
+  }
+
+  const copyChapter = () => {
+    const txt = `# ${title || `Chapter ${selected}`}` + "\n\n" + (content || '')
+    copyText(txt)
+  }
+
   const save = async () => {
     if (!content) { setMessage('Please paste or write the chapter content before saving.'); return }
     setSaving(true)
@@ -53,6 +75,29 @@ export default function ChapterGenerator({ project }) {
       setMessage('Save failed')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const generate = async () => {
+    setGenerating(true)
+    setMessage('')
+    try {
+      const res = await fetch(`${baseUrl}/api/chapters/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project_id: project.id, number: selected, override_pov: overridePOV || null })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.detail || 'Generation failed')
+      setPlan(p => p || { resolved_pov: data.pov_used, chapter_title: data.title })
+      setTitle(data.title || title)
+      setContent(data.content)
+      setMessage(`Generated (${data.word_count} words) — review and Save.`)
+      fetchChapters()
+    } catch (e) {
+      setMessage(e.message)
+    } finally {
+      setGenerating(false)
     }
   }
 
@@ -79,7 +124,10 @@ export default function ChapterGenerator({ project }) {
       <div className="bg-slate-800/50 border border-blue-500/20 rounded p-4 space-y-4">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="md:w-1/2 space-y-3">
-            <button onClick={prepare} className="w-full bg-blue-600 hover:bg-blue-500 text-white py-2 rounded">Prepare Chapter</button>
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={prepare} className="w-full bg-blue-600 hover:bg-blue-500 text-white py-2 rounded">Prepare Chapter</button>
+              <button onClick={generate} disabled={generating} className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white py-2 rounded">{generating ? 'Generating…' : 'Generate with AI'}</button>
+            </div>
             {plan && (
               <div className="space-y-3">
                 <div>
@@ -87,12 +135,11 @@ export default function ChapterGenerator({ project }) {
                   <p className="text-blue-100/80 text-sm">{plan.resolved_pov}</p>
                 </div>
                 <div>
-                  <h4 className="text-blue-200 font-semibold">System Rules</h4>
-                  <pre className="whitespace-pre-wrap text-blue-100/80 text-xs bg-slate-900/50 p-3 rounded border border-blue-500/20 max-h-64 overflow-auto">{plan.system_rules}</pre>
-                </div>
-                <div>
-                  <h4 className="text-blue-200 font-semibold">User Prompt</h4>
-                  <pre className="whitespace-pre-wrap text-blue-100/80 text-xs bg-slate-900/50 p-3 rounded border border-blue-500/20 max-h-64 overflow-auto">{plan.user_prompt}</pre>
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-blue-200 font-semibold">System Rules</h4>
+                    <button onClick={copyPrompt} className="text-xs bg-slate-700 hover:bg-slate-600 text-white px-2 py-1 rounded">Copy Prompt</button>
+                  </div>
+                  <pre ref={promptRef} className="whitespace-pre-wrap text-blue-100/80 text-xs bg-slate-900/50 p-3 rounded border border-blue-500/20 max-h-64 overflow-auto">{plan.system_rules + '\n\n' + plan.user_prompt}</pre>
                 </div>
               </div>
             )}
@@ -102,7 +149,10 @@ export default function ChapterGenerator({ project }) {
             <textarea value={content} onChange={e=>setContent(e.target.value)} rows={16} className="w-full bg-slate-900/60 border border-blue-500/30 rounded px-3 py-2 text-blue-50" placeholder="Paste generated chapter here (1400–1800 words)" />
             <div className="flex items-center justify-between text-sm">
               <p className={wc<1400 || wc>1800 ? 'text-red-300' : 'text-green-300'}>Word Count: {wc}</p>
-              <button disabled={saving} onClick={save} className="bg-emerald-600 hover:bg-emerald-500 text-white py-1.5 px-3 rounded disabled:opacity-60">{saving ? 'Saving...' : 'Save Chapter'}</button>
+              <div className="flex items-center gap-2">
+                <button onClick={copyChapter} className="bg-slate-700 hover:bg-slate-600 text-white py-1.5 px-3 rounded">Copy Chapter</button>
+                <button disabled={saving} onClick={save} className="bg-emerald-600 hover:bg-emerald-500 text-white py-1.5 px-3 rounded disabled:opacity-60">{saving ? 'Saving...' : 'Save Chapter'}</button>
+              </div>
             </div>
             {message && <p className="text-blue-200 text-sm">{message}</p>}
           </div>
