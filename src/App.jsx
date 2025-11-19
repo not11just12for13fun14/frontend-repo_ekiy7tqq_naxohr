@@ -1,71 +1,67 @@
+import { useState } from 'react'
+import ProjectForm from './components/ProjectForm'
+import ChapterGenerator from './components/ChapterGenerator'
+import POVRules from './components/POVRules'
+
 function App() {
+  const [project, setProject] = useState(null)
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {/* Subtle pattern overlay */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(59,130,246,0.05),transparent_50%)]"></div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-blue-50">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_-10%,rgba(59,130,246,0.08),transparent_40%),radial-gradient(circle_at_80%_110%,rgba(14,165,233,0.08),transparent_40%)] pointer-events-none" />
 
-      <div className="relative min-h-screen flex items-center justify-center p-8">
-        <div className="max-w-2xl w-full">
-          {/* Header with Flames icon */}
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center justify-center mb-6">
-              <img
-                src="/flame-icon.svg"
-                alt="Flames"
-                className="w-24 h-24 drop-shadow-[0_0_25px_rgba(59,130,246,0.5)]"
-              />
-            </div>
-
-            <h1 className="text-5xl font-bold text-white mb-4 tracking-tight">
-              Flames Blue
-            </h1>
-
-            <p className="text-xl text-blue-200 mb-6">
-              Build applications through conversation
-            </p>
-          </div>
-
-          {/* Instructions */}
-          <div className="bg-slate-800/50 backdrop-blur-sm border border-blue-500/20 rounded-2xl p-8 shadow-xl mb-6">
-            <div className="flex items-start gap-4 mb-6">
-              <div className="flex-shrink-0 w-8 h-8 bg-blue-500 text-white rounded-lg flex items-center justify-center font-bold">
-                1
-              </div>
-              <div>
-                <h3 className="font-semibold text-white mb-1">Describe your idea</h3>
-                <p className="text-blue-200/80 text-sm">Use the chat panel on the left to tell the AI what you want to build</p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-4 mb-6">
-              <div className="flex-shrink-0 w-8 h-8 bg-blue-500 text-white rounded-lg flex items-center justify-center font-bold">
-                2
-              </div>
-              <div>
-                <h3 className="font-semibold text-white mb-1">Watch it build</h3>
-                <p className="text-blue-200/80 text-sm">Your app will appear in this preview as the AI generates the code</p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-4">
-              <div className="flex-shrink-0 w-8 h-8 bg-blue-500 text-white rounded-lg flex items-center justify-center font-bold">
-                3
-              </div>
-              <div>
-                <h3 className="font-semibold text-white mb-1">Refine and iterate</h3>
-                <p className="text-blue-200/80 text-sm">Continue the conversation to add features and make changes</p>
-              </div>
+      <header className="relative z-10 border-b border-blue-500/10">
+        <div className="max-w-6xl mx-auto px-6 py-6 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <img src="/flame-icon.svg" alt="Flames" className="w-8 h-8" />
+            <div>
+              <h1 className="text-xl font-bold">ChapterSmith AI</h1>
+              <p className="text-xs text-blue-200/70">Complete Story Builder</p>
             </div>
           </div>
-
-          {/* Footer */}
-          <div className="text-center">
-            <p className="text-sm text-blue-300/60">
-              No coding required • Just describe what you want
-            </p>
-          </div>
+          <a href="/test" className="text-sm text-blue-200/80 hover:text-white">System Test</a>
         </div>
-      </div>
+      </header>
+
+      <main className="relative z-10 max-w-6xl mx-auto px-6 py-10">
+        {!project ? (
+          <div className="grid lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 bg-slate-900/40 border border-blue-500/20 rounded-2xl p-6 shadow-xl">
+              <h2 className="text-2xl font-semibold mb-1">Start a New Project</h2>
+              <p className="text-blue-200/80 mb-6">Paste your outline, select chapters and POV, then begin generating fully written chapters.</p>
+              <ProjectForm onCreated={setProject} />
+            </div>
+            <aside className="bg-slate-900/40 border border-blue-500/20 rounded-2xl p-6 h-fit">
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-lg font-semibold">Writing Rules</h3>
+                  <p className="text-sm text-blue-200/80">The app enforces grounded, human-first narration with clear, natural dialogue.</p>
+                </div>
+                <POVRules />
+                <div className="text-sm text-blue-100/80">
+                  <h4 className="text-blue-200 font-semibold mt-4 mb-2">Word Count</h4>
+                  <p>Each chapter must be strictly between 1400 and 1800 words. Keep scenes complete and cohesive within this range.</p>
+                </div>
+              </div>
+            </aside>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <div className="bg-slate-900/40 border border-blue-500/20 rounded-2xl p-6">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="text-blue-100 font-semibold">{project.title || 'Untitled Project'}</div>
+                <div className="text-xs text-blue-200/70">{project.chapter_count} chapters • POV: {project.pov_mode} • Genre: {project.genre || 'general'}</div>
+                <button onClick={() => setProject(null)} className="ml-auto text-sm text-blue-200/80 hover:text-white">Start new project</button>
+              </div>
+            </div>
+            <ChapterGenerator project={project} />
+          </div>
+        )}
+      </main>
+
+      <footer className="relative z-10 py-8 border-t border-blue-500/10 text-center text-blue-200/60 text-sm">
+        Built with Flames Blue
+      </footer>
     </div>
   )
 }
